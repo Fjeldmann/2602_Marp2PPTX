@@ -14,7 +14,7 @@ from pptx.util import Cm
 from bs4 import BeautifulSoup, Tag
 from PIL import Image
 
-from src.render_div_as_image import main as render_div_as_image
+from .render_div_as_image import main as render_div_as_image
 
 # --- Types / Aliases ---
 MarpSlideData = Dict[str, Any]

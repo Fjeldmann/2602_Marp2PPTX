@@ -10,14 +10,14 @@ from pathlib import Path
 from pptx import Presentation
 
 # Import from new modules
-from src.marp_convert import (
+from .marp_convert import (
     get_npx_path,
     marp_generate_in_parallel,
 )
-from src.preprocessing import (
+from .preprocessing import (
     preprocess_markdown,
 )
-from src.postprocessing import (
+from .postprocessing import (
     parse_marp_html,
     widen_text_shapes,
     normalize_font_names,

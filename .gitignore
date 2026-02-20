@@ -5,3 +5,5 @@
 *.preprocessed.marp.md
 .~*
 .env
+*.egg-info/
+build/

@@ -125,7 +125,31 @@ The next major step is to handle explicit `width` and `height` parameters for ba
     - For split backgrounds, shrink the content area as Marp does, so content is not covered by split backgrounds.
 
 
+# Install and run tool
+## Run as module without installing:
+```bash
+python -m marp2pptx --help
+```
+## Install locally and run:
+```bash
+uv pip install -e .
+```
+```bash
+marp2pptx --help
+```
+to unsinstall:
+```bash
+uv pip uninstall marp2pptx
+```
 
-----
-
-**Ready for next session: Implement advanced width/height placement logic.**
+## Install globally and run:
+```bash
+uv pip install -e --global .
+```
+```bash
+marp2pptx --help
+```
+to unsinstall:
+```bash
+uv pip uninstall marp2pptx --global
+```

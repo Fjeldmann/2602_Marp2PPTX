@@ -1,6 +1,7 @@
 #!/usr/bin/env -S uv run --script
 
 import argparse
+import importlib.metadata
 import logging
 import os
 import subprocess
@@ -262,10 +263,18 @@ def main() -> None:
         description="Process a Marp Markdown file to create a polished PPTX.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    
+
+    # Add a global version flag
+    parser.add_argument(
+        "-v", "--version",
+        action="version",
+        version=f"%(prog)s {importlib.metadata.version('marp2pptx')}",
+        help="Show the version number and exit."
+    )
+
     # Create subparsers for commands
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
+
     # Create the 'convert' subcommand
     convert_parser = subparsers.add_parser(
         "convert",

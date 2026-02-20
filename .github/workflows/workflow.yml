@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    environment: marp2pptx
     
     steps:
       - uses: actions/checkout@v4
@@ -24,4 +25,6 @@ jobs:
         run: uv build
       
       - name: Publish to PyPI
-        run: uv publish --token ${{ secrets.PYPI_API_TOKEN }}
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv publish --token $PYPI_TOKEN

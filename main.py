@@ -30,6 +30,134 @@ from src.postprocessing import (
 logger = logging.getLogger(__name__)
 
 
+def convert_command(args) -> None:
+    """
+    Execute the convert command to transform a Marp Markdown file to PPTX.
+    """
+    input_md_file = Path(args.input_file)
+    if not input_md_file.is_file():
+        logger.error(f"Input file not found: {input_md_file}")
+        sys.exit(1)
+
+    # Define file paths based on user's requirements
+    preprocessed_md_path = Path(f"{args.input_file}-m2p.preprocessed.marp.md")
+    html_path = Path(f"{args.input_file}-m2p.html")
+    raw_pptx_path = Path(f"{args.input_file}-m2p_raw.pptx")
+    final_pptx_path = (
+        Path(args.output) if args.output else Path(f"{args.input_file}-m2p.pptx")
+    )
+
+    # Include output files in cleanup list
+    intermediate_files = [preprocessed_md_path, html_path, raw_pptx_path]
+
+    try:
+        # --- Step 1: Preprocess Markdown ---
+        logger.info("Preprocessing Markdown to remove invisible characters...")
+        preprocess_markdown(input_md_file, preprocessed_md_path)
+        logger.debug(f"Preprocessed Markdown created: {preprocessed_md_path}")
+
+        # run HTML + raw PPTX generation concurrently to improve throughput
+        marp_generate_in_parallel(preprocessed_md_path, html_path, raw_pptx_path)
+
+        # --- Step 3: Post-process the PPTX ---
+        logger.info(f"Post-processing raw PPTX to create final file: {final_pptx_path}")
+
+        process_pptx_html(
+            Path(html_path),
+            Path(raw_pptx_path),
+            Path(final_pptx_path),
+            save_rendered_divs=args.debug and logger.isEnabledFor(logging.DEBUG),
+            run_styled_divs=args.experimental,
+        )
+        logger.info(f"Successfully created final PPTX: {final_pptx_path}")
+
+    except FileNotFoundError:
+        logger.error(
+            f"Error: '{get_npx_path()}' command not found. Is Node.js and npm installed and in your PATH?"
+        )
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Marp CLI failed to execute. The command was: {' '.join(e.cmd)}")
+        # Stderr is not captured when streaming, so we can't print it here.
+        # The error from the subprocess itself should be visible in the console.
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        logger.debug("Full traceback:", exc_info=True)
+        sys.exit(1)
+
+    finally:
+        # --- Step 4: Cleanup ---
+        if not args.debug:
+            logger.info("Cleaning up intermediate files...")
+            for f in intermediate_files:
+                try:
+                    if f.is_file():
+                        os.remove(f)
+                        logger.debug(f"Removed {f}")
+                except OSError as e:
+                    logger.warning(f"Could not remove intermediate file {f}: {e}")
+            logger.info("Cleanup complete.")
+        else:
+            logger.info("Intermediate files kept as requested.")
+
+
+def cleanup_command(args) -> None:
+    """
+    Execute the clean-up command to remove debug files.
+    """
+    input_md_file = Path(args.input_file)
+    
+    # Define debug file paths
+    preprocessed_md_path = Path(f"{args.input_file}-m2p.preprocessed.marp.md")
+    html_path = Path(f"{args.input_file}-m2p.html")
+    raw_pptx_path = Path(f"{args.input_file}-m2p_raw.pptx")
+    
+    debug_files = [preprocessed_md_path, html_path, raw_pptx_path]
+    
+    removed_count = 0
+    for f in debug_files:
+        try:
+            if f.is_file():
+                os.remove(f)
+                logger.info(f"Removed {f}")
+                removed_count += 1
+            else:
+                logger.debug(f"File not found: {f}")
+        except OSError as e:
+            logger.warning(f"Could not remove file {f}: {e}")
+    
+    if removed_count > 0:
+        logger.info(f"Cleanup complete. Removed {removed_count} file(s).")
+    else:
+        logger.info("No debug files found to remove.")
+
+
+def open_pptx_command(args) -> None:
+    """
+    Execute the open-pptx command to open the generated PPTX file.
+    """
+    pptx_path = Path(f"{args.input_file}-m2p.pptx")
+    
+    if not pptx_path.is_file():
+        logger.error(f"PPTX file not found: {pptx_path}")
+        sys.exit(1)
+    
+    try:
+        # Use os.startfile on Windows, open on macOS, xdg-open on Linux
+        if sys.platform == "win32":
+            os.startfile(str(pptx_path))
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(pptx_path)], check=True)
+        else:
+            subprocess.run(["xdg-open", str(pptx_path)], check=True)
+        
+        logger.info(f"Opening PPTX file: {pptx_path}")
+    except Exception as e:
+        logger.error(f"Failed to open PPTX file: {e}")
+        sys.exit(1)
+
+
 def process_pptx_html(
     html_path: Path,
     pptx_path: Path,
@@ -151,6 +279,31 @@ This script automates the pipeline:
         "-v", "--verbose", action="store_true", help="Enable verbose debug logging."
     )
     
+    # Create the 'clean-up' subcommand
+    cleanup_parser = subparsers.add_parser(
+        "clean-up",
+        help="Remove debug files (preprocessed Markdown, HTML, raw PPTX) generated by the convert command.",
+    )
+    cleanup_parser.add_argument(
+        "input_file",
+        type=str,
+        help='Path to the Marp Markdown file (e.g., "sample.marp.md")',
+    )
+    cleanup_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose debug logging."
+    )
+    
+    # Create the 'open-pptx' subcommand
+    open_parser = subparsers.add_parser(
+        "open-pptx",
+        help="Open the generated PPTX file in the default viewer.",
+    )
+    open_parser.add_argument(
+        "input_file",
+        type=str,
+        help='Path to the Marp Markdown file (e.g., "sample.marp.md")',
+    )
+    
     args = parser.parse_args()
     
     # Check if a command was provided
@@ -158,75 +311,16 @@ This script automates the pipeline:
         parser.print_help()
         sys.exit(1)
 
-    if args.verbose:
+    if hasattr(args, 'verbose') and args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    input_md_file = Path(args.input_file)
-    if not input_md_file.is_file():
-        logger.error(f"Input file not found: {input_md_file}")
-        sys.exit(1)
-
-    # Define file paths based on user's requirements
-    preprocessed_md_path = Path(f"{args.input_file}-m2p.preprocessed.marp.md")
-    html_path = Path(f"{args.input_file}-m2p.html")
-    raw_pptx_path = Path(f"{args.input_file}-m2p_raw.pptx")
-    final_pptx_path = (
-        Path(args.output) if args.output else Path(f"{args.input_file}-m2p.pptx")
-    )
-
-    # Include output files in cleanup list
-    intermediate_files = [preprocessed_md_path, html_path, raw_pptx_path]
-
-    try:
-        # --- Step 1: Preprocess Markdown ---
-        logger.info("Preprocessing Markdown to remove invisible characters...")
-        preprocess_markdown(input_md_file, preprocessed_md_path)
-        logger.debug(f"Preprocessed Markdown created: {preprocessed_md_path}")
-
-        # run HTML + raw PPTX generation concurrently to improve throughput
-        marp_generate_in_parallel(preprocessed_md_path, html_path, raw_pptx_path)
-
-        # --- Step 3: Post-process the PPTX ---
-        logger.info(f"Post-processing raw PPTX to create final file: {final_pptx_path}")
-
-        process_pptx_html(
-            Path(html_path),
-            Path(raw_pptx_path),
-            Path(final_pptx_path),
-            save_rendered_divs=args.debug and logger.isEnabledFor(logging.DEBUG),
-            run_styled_divs=args.experimental,
-        )
-        logger.info(f"Successfully created final PPTX: {final_pptx_path}")
-
-    except FileNotFoundError:
-        logger.error(
-            f"Error: '{get_npx_path()}' command not found. Is Node.js and npm installed and in your PATH?"
-        )
-        sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Marp CLI failed to execute. The command was: {' '.join(e.cmd)}")
-        # Stderr is not captured when streaming, so we can't print it here.
-        # The error from the subprocess itself should be visible in the console.
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        logger.debug("Full traceback:", exc_info=True)
-        sys.exit(1)
-
-    finally:
-        # --- Step 4: Cleanup ---
-        if not args.debug:
-            logger.info("Cleaning up intermediate files...")
-            for f in intermediate_files:
-                try:
-                    if f.is_file():
-                        os.remove(f)
-                        logger.debug(f"Removed {f}")
-                except OSError as e:
-                    logger.warning(f"Could not remove intermediate file {f}: {e}")
-            logger.info("Cleanup complete.")
-        else:
-            logger.info("Intermediate files kept as requested.")
+    # Dispatch to appropriate command function
+    if args.command == "convert":
+        convert_command(args)
+    elif args.command == "clean-up":
+        cleanup_command(args)
+    elif args.command == "open-pptx":
+        open_pptx_command(args)
 
 
 if __name__ == "__main__":

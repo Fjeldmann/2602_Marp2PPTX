@@ -203,6 +203,10 @@ def process_pptx_html(
         prs=prs,
         slides_data=slides_data,
     )
+
+    # Widen text boxes to avoid wrapping issues in some viewers (extracted to helper).
+    widen_text_shapes(prs=prs, extra_width_cm=1.75)
+
     # Merge consecutive text boxes from the same wrapped sentence into one text box.
     # Marp CLI via LibreOffice splits long sentences that wrap across multiple visual
     # lines into separate text boxes (one per line). This step reunifies them so the
@@ -213,8 +217,6 @@ def process_pptx_html(
     except Exception:
         logger.debug("process_pptx_html: merge_multiline_textboxes failed", exc_info=True)
 
-    # Widen text boxes to avoid wrapping issues in some viewers (extracted to helper).
-    widen_text_shapes(prs=prs, extra_width_cm=.7)
 
 
     # Handle styled HTML <div> elements that contain images. This was extracted to

@@ -1,6 +1,6 @@
 [project]
 name = "marp2pptx"
-version = "0.1.4"
+version = "0.1.5"
 description = "Convert Marp Markdown files to polished PPTX presentations"
 readme = "README.md"
 requires-python = ">=3.10"

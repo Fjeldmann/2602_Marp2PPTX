@@ -9,10 +9,10 @@ from pptx.util import Cm
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 # Import from refactored modules
-from src import postprocessing as mpp_post
-from src.preprocessing import remove_invisible_characters, preprocess_markdown
-from src.render_div_as_image import main as render_div_as_image
-import main  # for process_pptx_html
+from marp2pptx import postprocessing as mpp_post
+from marp2pptx.preprocessing import remove_invisible_characters, preprocess_markdown
+from marp2pptx.render_div_as_image import main as render_div_as_image
+import marp2pptx.__main__ as main  # for process_pptx_html
 
 # Create a compatibility namespace for tests
 class mpp:
@@ -888,7 +888,7 @@ def test_real_markdown_file_consolidates_to_single_textbox(tmp_path):
     html_file = tmp_path / "characters.marp.md.html"
     
     try:
-        from src.marp_convert import marp_generate_in_parallel
+        from marp2pptx.marp_convert import marp_generate_in_parallel
         marp_generate_in_parallel(md_file, html_file, pptx_file)
     except Exception as e:
         # If marp fails, skip (e.g., in CI without Node.js)
@@ -1047,7 +1047,7 @@ def test_preprocess_markdown_end_to_end_with_text_marp_md(tmp_path):
     
     try:
         # Run marp CLI on the preprocessed file
-        from src.marp_convert import marp_generate_in_parallel
+        from marp2pptx.marp_convert import marp_generate_in_parallel
         marp_generate_in_parallel(preprocessed_md, html_output, pptx_output)
     except Exception as e:
         # If marp fails, skip (e.g., in CI without Node.js)

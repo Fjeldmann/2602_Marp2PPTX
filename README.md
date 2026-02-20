@@ -141,15 +141,3 @@ to unsinstall:
 ```bash
 uv pip uninstall marp2pptx
 ```
-
-## Install globally and run:
-```bash
-uv pip install -e --global .
-```
-```bash
-marp2pptx --help
-```
-to unsinstall:
-```bash
-uv pip uninstall marp2pptx --global
-```
